@@ -1,6 +1,6 @@
 target/
-!target/*.scm
-!target/*.jar
+!target/TimestampConverter.scm
+!target/TimestampConverter.jar
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

@@ -109,7 +109,7 @@
                         </goals>
                         <configuration>
                             <sourceFile>target/TimestampConverter.jar</sourceFile>
-                            <destinationFile>target/TimestampConverter-${STRIIM_VERSION}.scm</destinationFile>
+                            <destinationFile>target/TimestampConverter.scm</destinationFile>
                         </configuration>
                     </execution>
                     <!-- Copy .scm file to Striim installation for deployment -->
@@ -121,7 +121,7 @@
                         </goals>
                         <configuration>
                             <sourceFile>target/TimestampConverter.jar</sourceFile>
-                            <destinationFile>${STRIIMBUILDPATH}/UploadedFiles/TimestampConverter-${STRIIM_VERSION}.scm</destinationFile>
+                            <destinationFile>${STRIIMBUILDPATH}/UploadedFiles/TimestampConverter.scm</destinationFile>
                         </configuration>
                     </execution>
                 </executions>
