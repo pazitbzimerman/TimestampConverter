@@ -100,8 +100,21 @@
                 <artifactId>copy-rename-maven-plugin</artifactId>
                 <version>1.0</version>
                 <executions>
+                    <!-- Copy .scm file to target directory for version control -->
                     <execution>
-                        <id>copy-file</id>
+                        <id>copy-to-target</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <sourceFile>target/TimestampConverter.jar</sourceFile>
+                            <destinationFile>target/TimestampConverter-${STRIIM_VERSION}.scm</destinationFile>
+                        </configuration>
+                    </execution>
+                    <!-- Copy .scm file to Striim installation for deployment -->
+                    <execution>
+                        <id>copy-to-striim</id>
                         <phase>package</phase>
                         <goals>
                             <goal>copy</goal>
