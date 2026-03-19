@@ -1,0 +1,45 @@
+-- Oracle to Oracle with Timestamp Conversion
+-- This sample demonstrates using TimestampConverter to convert timestamps
+-- from Oracle database to a target timezone (Asia/Kolkata)
+
+CREATE OR REPLACE APPLICATION OraToOra USE EXCEPTIONSTORE TTL : '7d' ;
+
+CREATE OR REPLACE SOURCE OraToOra_DBSource USING Global.DatabaseReader ( 
+  Username: 'pazit1', 
+  QuiesceOnILCompletion: true, 
+  adapterName: 'DatabaseReader', 
+  DatabaseProviderType: 'Oracle', 
+  ReturnDateTimeAs: 'JODA', 
+  Password_encrypted: 'true', 
+  ConnectionURL: 'jdbc:oracle:thin:@//localhost:1521/ORCL', 
+  connectionProfileName: '', 
+  ParallelThreads: 1, 
+  RestartBehaviourOnILInterruption: 'keepTargetTableData', 
+  useConnectionProfile: false, 
+  Query: '', 
+  FetchSize: 10000, 
+  CreateSchema: true, 
+  Password: 'hCF8bbB1WwmoIFxtK6pYiw==', 
+  Tables: 'PAZIT.event_logs' ) 
+OUTPUT TO OraToOra_OutputStream;
+
+CREATE STREAM AfterTz OF Global.WAEvent;
+
+CREATE TARGET FileWriter1 USING Global.FileWriter ( 
+  flushpolicy: 'EventCount:10000,Interval:30s', 
+  directory: 'OF_18_3_2026', 
+  rolloverpolicy: 'EventCount:10000,Interval:30s', 
+  filename: 'Writer1_%yyyy-MM-dd_HH_mm_ss_SSS_z%', 
+  rolloveronddl: false ) 
+FORMAT USING Global.JSONFormatter  ( 
+ ) 
+INPUT FROM AfterTz;
+
+CREATE OR REPLACE OPEN PROCESSOR TimestampConverter_Proc USING Global.TimestampConverter (
+  TargetTimeZoneID: 'Asia/Kolkata', 
+  EnableLogging: true ) 
+INSERT INTO AfterTz
+FROM OraToOra_OutputStream;
+
+END APPLICATION OraToOra;
+
