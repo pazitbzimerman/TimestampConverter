@@ -342,4 +342,3 @@ For questions or issues, please contact your Striim support representative.
 - Debug logging capability for troubleshooting
 - Automatic processing of both `data` and `before` arrays for CDC support
 - All timestamp types converted to `org.joda.time.DateTime` for consistency
-
