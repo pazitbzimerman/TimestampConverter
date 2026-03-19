@@ -13,6 +13,10 @@ import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Objects;
 
@@ -49,8 +53,15 @@ import java.util.Objects;
 public class TimestampConverter extends StriimOpenProcessor {
 
     private static final Logger logger = LogManager.getLogger(TimestampConverter.class);
+
+    // Joda-Time timezone objects (for org.joda.time.DateTime)
     private DateTimeZone sourceZone;
     private DateTimeZone targetZone;
+
+    // java.time timezone objects (for java.time.LocalDateTime, ZonedDateTime, etc.)
+    private ZoneId sourceZoneId;
+    private ZoneId targetZoneId;
+
     private boolean enableLogging = false;
 
     @Override
@@ -62,7 +73,7 @@ public class TimestampConverter extends StriimOpenProcessor {
         String sourceZoneId = Objects.toString(props.get("SourceTimeZoneID"), "");
         String targetZoneId = Objects.toString(props.get("TargetTimeZoneID"), "");
 
-        // 1. Determine the source timezone to assume
+        // 1. Determine the source timezone to assume (Joda-Time)
         try {
             this.sourceZone = sourceZoneId.isEmpty() ? DateTimeZone.getDefault() : DateTimeZone.forID(sourceZoneId);
         } catch (IllegalArgumentException e) {
@@ -70,12 +81,27 @@ public class TimestampConverter extends StriimOpenProcessor {
             this.sourceZone = DateTimeZone.getDefault();
         }
 
-        // 2. Determine the target timezone for conversion
+        // 2. Determine the target timezone for conversion (Joda-Time)
         try {
             this.targetZone = targetZoneId.isEmpty() ? this.sourceZone : DateTimeZone.forID(targetZoneId);
         } catch (IllegalArgumentException e) {
             logger.error("Invalid TargetTimeZoneID: " + targetZoneId + ". Falling back to source timezone.", e);
             this.targetZone = this.sourceZone;
+        }
+
+        // 3. Initialize java.time ZoneId objects (for java.time.LocalDateTime support)
+        try {
+            this.sourceZoneId = sourceZoneId.isEmpty() ? ZoneId.systemDefault() : ZoneId.of(sourceZoneId);
+        } catch (Exception e) {
+            logger.error("Invalid SourceTimeZoneID for java.time: " + sourceZoneId + ". Falling back to system default.", e);
+            this.sourceZoneId = ZoneId.systemDefault();
+        }
+
+        try {
+            this.targetZoneId = targetZoneId.isEmpty() ? this.sourceZoneId : ZoneId.of(targetZoneId);
+        } catch (Exception e) {
+            logger.error("Invalid TargetTimeZoneID for java.time: " + targetZoneId + ". Falling back to source timezone.", e);
+            this.targetZoneId = this.sourceZoneId;
         }
 
         if (enableLogging) {
@@ -104,25 +130,112 @@ public class TimestampConverter extends StriimOpenProcessor {
         }
 
         for (int i = 0; i < arr.length; i++) {
-            if (BuiltInFunc.IS_PRESENT(waevent, arr, i) && arr[i] instanceof DateTime) {
-                DateTime originalDateTime = (DateTime) arr[i];
+            if (!BuiltInFunc.IS_PRESENT(waevent, arr, i) || arr[i] == null) {
+                continue;
+            }
 
-                // STEP 1: Assume the source timezone. This re-interprets the "wall clock" time
-                // in the specified zone, establishing the correct instant.
-                DateTime assumedDateTime = originalDateTime.withZoneRetainFields(this.sourceZone);
+            Object original = arr[i];
+            Object converted = null;
 
-                // STEP 2: Convert the now-correct instant to the target timezone.
-                DateTime convertedDateTime = assumedDateTime.withZone(this.targetZone);
+            // Handle org.joda.time.DateTime
+            if (original instanceof DateTime) {
+                converted = convertJodaDateTime((DateTime) original);
+            }
+            // Handle java.time.LocalDateTime
+            else if (original instanceof LocalDateTime) {
+                converted = convertLocalDateTime((LocalDateTime) original);
+            }
+            // Handle java.time.ZonedDateTime
+            else if (original instanceof ZonedDateTime) {
+                converted = convertZonedDateTime((ZonedDateTime) original);
+            }
+            // Handle java.sql.Timestamp
+            else if (original instanceof Timestamp) {
+                converted = convertSqlTimestamp((Timestamp) original);
+            }
 
-                arr[i] = convertedDateTime;
-
-                if (enableLogging) {
-                    logger.debug("Converted timestamp at index " + i + ": [Original: " + originalDateTime +
-                            "] -> [Assumed in " + sourceZone.getID() + ": " + assumedDateTime +
-                            "] -> [Converted to " + targetZone.getID() + ": " + convertedDateTime + "]");
-                }
+            // Replace the value if conversion occurred
+            if (converted != null) {
+                arr[i] = converted;
             }
         }
+    }
+
+    /**
+     * Convert org.joda.time.DateTime
+     */
+    private DateTime convertJodaDateTime(DateTime originalDateTime) {
+        // STEP 1: Assume the source timezone. This re-interprets the "wall clock" time
+        // in the specified zone, establishing the correct instant.
+        DateTime assumedDateTime = originalDateTime.withZoneRetainFields(this.sourceZone);
+
+        // STEP 2: Convert the now-correct instant to the target timezone.
+        DateTime convertedDateTime = assumedDateTime.withZone(this.targetZone);
+
+        if (enableLogging) {
+            logger.debug("Converted Joda DateTime: [Original: " + originalDateTime +
+                    "] -> [Assumed in " + sourceZone.getID() + ": " + assumedDateTime +
+                    "] -> [Converted to " + targetZone.getID() + ": " + convertedDateTime + "]");
+        }
+
+        return convertedDateTime;
+    }
+
+    /**
+     * Convert java.time.LocalDateTime to org.joda.time.DateTime
+     */
+    private DateTime convertLocalDateTime(LocalDateTime localDateTime) {
+        // STEP 1: Assume the source timezone for the LocalDateTime
+        ZonedDateTime assumedZonedDateTime = localDateTime.atZone(this.sourceZoneId);
+
+        // STEP 2: Convert to target timezone
+        ZonedDateTime convertedZonedDateTime = assumedZonedDateTime.withZoneSameInstant(this.targetZoneId);
+
+        // STEP 3: Convert to Joda DateTime for consistency with Striim
+        DateTime result = new DateTime(
+                convertedZonedDateTime.toInstant().toEpochMilli(),
+                DateTimeZone.forID(this.targetZoneId.getId())
+        );
+
+        if (enableLogging) {
+            logger.debug("Converted LocalDateTime: [Original: " + localDateTime +
+                    "] -> [Assumed in " + sourceZoneId + ": " + assumedZonedDateTime +
+                    "] -> [Converted to " + targetZoneId + ": " + convertedZonedDateTime +
+                    "] -> [Joda DateTime: " + result + "]");
+        }
+
+        return result;
+    }
+
+    /**
+     * Convert java.time.ZonedDateTime to org.joda.time.DateTime
+     */
+    private DateTime convertZonedDateTime(ZonedDateTime zonedDateTime) {
+        // ZonedDateTime already has timezone info, so just convert to target timezone
+        ZonedDateTime convertedZonedDateTime = zonedDateTime.withZoneSameInstant(this.targetZoneId);
+
+        // Convert to Joda DateTime
+        DateTime result = new DateTime(
+                convertedZonedDateTime.toInstant().toEpochMilli(),
+                DateTimeZone.forID(this.targetZoneId.getId())
+        );
+
+        if (enableLogging) {
+            logger.debug("Converted ZonedDateTime: [Original: " + zonedDateTime +
+                    "] -> [Converted to " + targetZoneId + ": " + convertedZonedDateTime +
+                    "] -> [Joda DateTime: " + result + "]");
+        }
+
+        return result;
+    }
+
+    /**
+     * Convert java.sql.Timestamp to org.joda.time.DateTime
+     */
+    private DateTime convertSqlTimestamp(Timestamp timestamp) {
+        // Convert Timestamp to LocalDateTime, then process like LocalDateTime
+        LocalDateTime localDateTime = timestamp.toLocalDateTime();
+        return convertLocalDateTime(localDateTime);
     }
 
     @Override

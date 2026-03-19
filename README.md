@@ -213,8 +213,13 @@ You should see `TimestampConverter` in the list.
 The processor automatically:
 - Scans all fields in each event's `data` array
 - Scans all fields in each event's `before` array (for CDC operations)
-- Identifies fields of type `org.joda.time.DateTime`
-- Applies the two-step timezone conversion to each DateTime field
+- Identifies timestamp fields of the following types:
+  - `org.joda.time.DateTime` (Striim's default timestamp type)
+  - `java.time.LocalDateTime` (Java 8+ timezone-unaware timestamps)
+  - `java.time.ZonedDateTime` (Java 8+ timezone-aware timestamps)
+  - `java.sql.Timestamp` (JDBC timestamp type)
+- Applies the two-step timezone conversion to each timestamp field
+- Converts all timestamp types to `org.joda.time.DateTime` for consistency
 - Passes through all other data types unchanged
 
 ### Error Handling
@@ -242,13 +247,17 @@ The processor automatically:
 4. Use `Global.TimestampConverter` (not `com.striim.field.TimestampConverter`) in your TQL
 
 ### Problem: Timestamps are not being converted
-**Cause:** The timezone IDs might be invalid or the processor is not receiving DateTime objects.
+**Cause:** The timezone IDs might be invalid or the processor is not receiving supported timestamp objects.
 
 **Solution:**
 1. Enable logging: `EnableLogging: true`
 2. Check Striim logs for error messages
 3. Verify you're using IANA timezone IDs (e.g., `America/New_York`, not `EST`)
-4. Verify the source data contains `org.joda.time.DateTime` fields (use `DESCRIBE TYPE` in TQL)
+4. Verify the source data contains supported timestamp types (use `DESCRIBE TYPE` in TQL):
+   - `org.joda.time.DateTime`
+   - `java.time.LocalDateTime`
+   - `java.time.ZonedDateTime`
+   - `java.sql.Timestamp`
 
 ### Problem: Timestamps show in server's local timezone after conversion
 **Cause:** Some Striim targets (like File Writer) may convert DateTime objects back to the server's local timezone when writing.
@@ -324,8 +333,13 @@ For questions or issues, please contact your Striim support representative.
 
 ### Version 5.2.0 (2026-03-19)
 - Initial release
-- Support for timezone-unaware timestamp conversion
-- Configurable source and target timezones
-- Debug logging capability
+- Support for multiple timestamp types:
+  - `org.joda.time.DateTime` (Striim default)
+  - `java.time.LocalDateTime` (Java 8+ timezone-unaware)
+  - `java.time.ZonedDateTime` (Java 8+ timezone-aware)
+  - `java.sql.Timestamp` (JDBC timestamps)
+- Configurable source and target timezones using IANA timezone IDs
+- Debug logging capability for troubleshooting
 - Automatic processing of both `data` and `before` arrays for CDC support
+- All timestamp types converted to `org.joda.time.DateTime` for consistency
 
