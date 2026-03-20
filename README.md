@@ -202,8 +202,7 @@ The processor automatically:
 **Solution:**
 1. Verify the `.scm` file is in the `models` directory
 2. Restart Striim
-3. Run `SHOW MODULES;` to confirm the module is loaded
-4. Use `Global.TimestampConverter` (not `com.striim.field.TimestampConverter`) in your TQL
+3. Use `Global.TimestampConverter` (not `com.striim.field.TimestampConverter`) in your TQL
 
 ### Problem: Timestamps are not being converted
 **Cause:** The timezone IDs might be invalid or the processor is not receiving supported timestamp objects.
@@ -278,17 +277,7 @@ INPUT FROM ConvertedStream;
 
 ---
 
-## 10. License and Support
-
-**Version:** 5.2.0
-**Author:** Striim Field Engineering
-**Package:** `com.striim.field.TimestampConverter`
-
-For questions or issues, please contact your Striim support representative.
-
----
-
-## 11. Changelog
+## 10. Changelog
 
 ### Version 5.2.0 (2026-03-19)
 - Initial release
