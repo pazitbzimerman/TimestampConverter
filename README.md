@@ -143,67 +143,26 @@ SELECT * FROM LocalSource;
 
 ---
 
-## 6. Building and Deploying
+## 6. Installation
 
-### Prerequisites
-- Java 11 or higher
-- Maven 3.6+
-- Striim 5.2.0 (or adjust version in `pom.xml`)
+### Step 1: Download the SCM File
 
-### Step 1: Configure Your Environment
-Edit `pom.xml` and set the path to your Striim installation:
+Download the latest `TimestampConverter.scm` file from the [Releases](https://github.com/pazitbzimerman/TimestampConverter/releases) page.
 
-```xml
-<STRIIMBUILDPATH>/path/to/your/Striim_5_2_0</STRIIMBUILDPATH>
-<STRIIM_VERSION>5.2.0</STRIIM_VERSION>
-```
+### Step 2: Deploy to Striim
 
-### Step 2: Build the Project
-```bash
-mvn clean package
-```
-
-This will:
-1. Compile the Java source code
-2. Create a shaded JAR with all dependencies
-3. Generate `TimestampConverter-5.2.0.scm` in the `target/` directory
-4. Automatically copy the `.scm` file to `${STRIIMBUILDPATH}/UploadedFiles/`
-
-### Step 3: Deploy to Striim
-
-#### Option A: Automatic Deployment (if using Maven plugin)
-The Maven build automatically copies the `.scm` file to your Striim installation's `UploadedFiles` directory. Move it to the `models` directory:
-
-```bash
-mv ${STRIIMBUILDPATH}/UploadedFiles/TimestampConverter-5.2.0.scm ${STRIIMBUILDPATH}/models/
-```
-
-#### Option B: Manual Deployment
-1. Copy `target/TimestampConverter.jar` to your Striim installation's `models` directory:
+1. Copy the downloaded `.scm` file to your Striim installation's `models` directory:
    ```bash
-   cp target/TimestampConverter.jar /path/to/Striim/models/TimestampConverter-5.2.0.scm
+   cp TimestampConverter.scm /path/to/Striim/models/
    ```
 
-2. Restart Striim:
-   ```bash
-   cd /path/to/Striim
-   ./bin/shutdown.sh
-   ./bin/startup.sh
-   ```
+2. Restart Striim according to the [Striim documentation](https://www.striim.com/docs/platform/en/starting-and-stopping-striim-platform.html)
 
-#### Option C: Import via Striim Console
-1. Log into Striim Web UI
-2. Navigate to **Apps** → **Import**
-3. Browse to `target/TimestampConverter.jar`
-4. Import the module
+### Step 3: Verify Installation
 
-### Step 4: Verify Installation
-In Striim TQL console, run:
-```sql
-SHOW MODULES;
-```
-
-You should see `TimestampConverter` in the list.
+1. Create a new app in the Striim UI
+2. Drag an OP (Open Processor) component onto the canvas
+3. Look for `TimestampConverter` in the adapter list
 
 ---
 
